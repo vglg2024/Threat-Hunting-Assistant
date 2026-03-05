@@ -1,0 +1,14 @@
+type,value,description,severity,source,tags
+ipv4,45.33.32.156,Known C2 server - Cobalt Strike beacon,Critical,ThreatFox,cobalt-strike,c2
+ipv4,185.220.101.47,Tor exit node - anonymization,Medium,AbuseIPDB,tor,proxy
+ipv4,194.165.16.78,Emotet C2 infrastructure,Critical,MISP,emotet,banking-trojan
+domain,evil-update-cdn.com,Fake Windows Update C2 domain,High,VirusTotal,c2,phishing
+domain,cdn-telemetry.net,Suspected DGA domain - malware C2,High,ThreatFox,dga,c2
+domain,windowsupdate-patch.net,Typosquatting Windows Update,High,internal,phishing,typosquat
+md5,5d41402abc4b2a76b9719d911017c592,Mimikatz credential dumper variant,Critical,VirusTotal,credential-dumping,mimikatz
+sha256,e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855,Known ransomware payload hash,Critical,MalwareBazaar,ransomware
+sha1,da39a3ee5e6b4b0d3255bfef95601890afd80709,NetCat variant - reverse shell,High,internal,backdoor,netcat
+url,http://evil-update-cdn.com/payload.exe,Malware delivery URL - drive-by,Critical,URLhaus,malware-download
+email,spearphish@evil-corp.ru,Spear phishing sender - APT29 attributed,Critical,internal,apt29,phishing
+cve,CVE-2021-34527,PrintNightmare - RCE / LPE in Windows Print Spooler,Critical,NVD,rce,windows,printnightmare
+cve,CVE-2021-44228,Log4Shell - Apache Log4j RCE,Critical,NVD,rce,log4j,log4shell
