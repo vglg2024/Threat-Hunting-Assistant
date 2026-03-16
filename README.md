@@ -5,7 +5,7 @@
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white)](https://python.org)
 [![eCTHP Aligned](https://img.shields.io/badge/eCTHP-Aligned-38BDF8)](https://elearnsecurity.com)
 [![MITRE ATT&CK](https://img.shields.io/badge/MITRE-ATT%26CK-red)](https://attack.mitre.org)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green)](LICENSE)
+[![Version](https://img.shields.io/badge/Version-1.5-brightgreen)]()
 
 ---
 
@@ -21,22 +21,54 @@ THA executes the full eCTHP hunt cycle:
 |------|-------------|------------|
 | 1 | Planning & Scoping | `tha_core.py` — Session management |
 | 2 | Evidence Collection | `tha_pcap.py` + `tha_logs.py` |
-| 3 | IOC & Threat Intel | `tha_ioc.py` — Correlation engine |
-| 4 | Hypothesis Development | `tha_hypothesis.py` — MITRE mapping |
-| 5 | Validation | GUI analyst notes + evidence tables |
-| 6 | Documentation | `tha_report.py` — HTML/PDF output |
+| 3 | Network Protocol Analysis | `tha_icmp.py`, `tha_dns.py`, `tha_dhcp.py`, `tha_http.py` |
+| 4 | IOC & Threat Intel | `tha_ioc.py` — Correlation engine |
+| 5 | Hypothesis Development | `tha_hypothesis.py` — MITRE mapping |
+| 6 | Validation | GUI analyst notes + evidence tables |
+| 7 | Documentation | `tha_report.py` — HTML/PDF output |
 
 ---
 
 ## 🧩 Key Capabilities
 
-### 🌐 PCAP Analysis Engine
-- Flow extraction (src → dst, bytes, ports)
-- DGA detection via subdomain entropy analysis
-- C2 beaconing pattern identification
-- ICMP tunneling payload inspection
-- Non-standard port flagging (T1571)
-- Large transfer / exfiltration detection (T1041)
+### 🌐 Network Analysis Engine (v1.5)
+
+**Network Summary (NetworkMiner-style)**
+- Passive host discovery — builds full asset inventory from PCAP
+- Service and role identification (DNS server, DHCP server, web server, workstation)
+- Top talkers by traffic volume
+- Cleartext protocol detection (Telnet, FTP, SMTP, SNMP)
+- Internal-to-internal lateral movement detection (RDP, SMB, WinRM, SSH)
+
+**ICMP Analysis**
+- ICMP flood detection (100+ packets/window)
+- Large payload detection — ICMP tunneling (PTunnel, ICMPTX)
+- Reply-without-request anomalies — spoofed/reflected traffic
+- Unusual ICMP type codes — OS fingerprinting and reconnaissance
+- Bidirectional tunnel pattern detection (consistent payload sizes)
+
+**DNS Analysis**
+- NXDomain flood detection — DGA indicator (malware rotating C2 domains)
+- Domain Generation Algorithm (DGA) detection via Shannon entropy analysis
+- DNS exfiltration via subdomain encoding — data chunked into queries
+- High-frequency DNS queries — C2 keepalive/beaconing
+- DNS over TCP (port 53) — Iodine, dnscat2 tunneling indicator
+- Non-standard resolver detection — malware bypassing corporate DNS
+- TXT/ANY record type abuse — DNS tunnel tool signatures
+
+**DHCP Analysis**
+- Rogue DHCP server detection — Man-in-the-Middle precursor
+- DHCP starvation attack detection — spoofed MAC pool exhaustion
+- DHCP Offer without Discover — replay attack or rogue server indicator
+
+**HTTP / C2 Beaconing**
+- Beacon interval analysis using coefficient of variation
+- Cobalt Strike default interval detection (60s)
+- Cobalt Strike malleable C2 URI pattern matching
+- Suspicious User-Agent detection (Python, curl, Go, PowerShell, Empire)
+- Large HTTP POST exfiltration detection
+- Suspicious HTTP method detection (CONNECT, TRACE, TRACK)
+- High-frequency connection analysis
 
 ### 📋 Multi-Format Log Triage
 - **Windows**: JSON events, CSV exports, Sysmon XML
@@ -72,7 +104,14 @@ THA executes the full eCTHP hunt cycle:
 THA/
 ├── tha_gui.py            # Main Tkinter GUI
 ├── tha_core.py           # Session management & orchestration
-├── tha_pcap.py           # PCAP analysis engine
+│
+├── tha_pcap.py           # PCAP orchestration engine (v1.5)
+├── tha_netsummary.py     # Passive asset discovery — NetworkMiner style
+├── tha_icmp.py           # ICMP tunnel/flood/anomaly detection
+├── tha_dns.py            # DNS exfiltration, DGA, tunneling detection
+├── tha_dhcp.py           # Rogue DHCP server, starvation detection
+├── tha_http.py           # C2 beaconing, Cobalt Strike, UA detection
+│
 ├── tha_logs.py           # Log parsing (JSON, CSV, Sysmon, Linux)
 ├── tha_ioc.py            # IOC correlation engine
 ├── tha_hypothesis.py     # Hypothesis generation & MITRE mapping
@@ -91,20 +130,12 @@ THA/
 ### Requirements
 
 - Python 3.10+
-- pip packages (see `requirements.txt`)
+- Npcap (Windows) — required for PCAP analysis: [npcap.com](https://npcap.com)
 
 ```bash
 pip install -r requirements.txt
-```
-
-**Optional for PCAP analysis:**
-```bash
-pip install scapy
-```
-
-**Optional for PDF export:**
-```bash
-pip install weasyprint
+pip install scapy        # PCAP analysis
+pip install weasyprint   # PDF export (optional)
 ```
 
 ### Running THA
@@ -113,51 +144,12 @@ pip install weasyprint
 python tha_gui.py
 ```
 
-The GUI will open. From there:
-
 1. Set your **Hunt Name** and **Analyst Name**
 2. Load evidence files: PCAP, logs (JSON/CSV/XML/log), IOC database
 3. Click **▶ Run Full Analysis**
 4. Review findings across the **Network**, **Logs**, and **IOCs** tabs
-5. Click **💡 Generate Hypotheses** for MITRE-mapped hypothesis output
+5. Click **💡 Generate Hypotheses** for MITRE-mapped output
 6. Export your **HTML** or **PDF** report
-
-### Using THA as a Library
-
-```python
-from tha_core import THASession
-from tha_pcap import PCAPAnalyzer
-from tha_logs import LogAnalyzer
-from tha_ioc import IOCDatabase, IOCCorrelator
-from tha_hypothesis import HypothesisGenerator
-from tha_report import ReportBuilder
-
-# Create session
-session = THASession(analyst_name="Your Name", hunt_name="Hunt-2024-001")
-
-# Analyze evidence
-pcap_findings = PCAPAnalyzer("capture.pcap").analyze()
-log_findings  = LogAnalyzer("sysmon.json").analyze()
-
-# IOC correlation
-db = IOCDatabase()
-db.load_csv("iocs.csv")
-correlator = IOCCorrelator(db)
-correlator.extract_from_findings(pcap_findings + log_findings)
-ioc_matches = correlator.correlate()
-
-# Generate hypotheses
-all_findings = pcap_findings + log_findings + ioc_matches
-gen = HypothesisGenerator()
-gen.generate(all_findings)
-hyp_summary = gen.get_summary()
-
-# Build report
-session.pcap_findings = pcap_findings
-session.log_findings = log_findings
-builder = ReportBuilder(session, hyp_summary, correlator.get_summary())
-builder.build_html("output/hunt_report.html")
-```
 
 ---
 
@@ -181,55 +173,39 @@ THA is built around the **eCTHP (eLearnSecurity Certified Threat Hunting Profess
 
 - Structured hypothesis-driven hunting approach
 - Evidence-based MITRE ATT&CK mapping
+- Protocol-level network anomaly detection
 - Professional hunt report generation
 - Real-world PCAP, Sysmon, and Windows Event Log analysis
 - IOC threat intelligence integration
-
-Use THA as a **hands-on practice environment** for eCTHP exam preparation, or as a portfolio piece that demonstrates applied certification knowledge.
-
----
-
-## 🧠 Why This Project Matters
-
-Threat hunting is one of the highest-value blue-team disciplines — and one of the most undersupported with tooling. THA demonstrates:
-
-- Network forensics expertise (PCAP, protocol analysis)
-- Log analysis and detection engineering
-- Threat intelligence enrichment workflows
-- Structured, hypothesis-driven methodology
-- Professional reporting and documentation
-
-This makes THA valuable as a **portfolio project**, **SOC tool**, **training platform**, and **consulting deliverable**.
 
 ---
 
 ## 📦 Roadmap
 
-**v1.5 (planned)**
-- Cloud log ingestion (Azure Sentinel, AWS CloudTrail, GCP Logging)
-- Sigma rule integration
-- Behavioral scoring engine
-- Timeline reconstruction module
-- API-based threat intel enrichment (VirusTotal, OTX)
+| Version | Status | Highlights |
+|---------|--------|------------|
+| **v1.0** | ✅ Shipped | Log analysis, IOC correlation, MITRE mapping, hunt reports |
+| **v1.5** | ✅ Shipped | Network hunting — ICMP, DNS, DHCP, HTTP, C2 beaconing detection |
+| **v2.0** | 🔲 Planned | Cloud log ingestion, Sigma rules, behavioral scoring, timeline reconstruction, VirusTotal/OTX enrichment |
+| **v3.0** | 🔲 Planned | Web-based SaaS interface, multi-analyst collaboration, SOAR integration, executive dashboard |
 
-**v2.0 (planned)**
-- Web-based SaaS interface
-- Multi-analyst collaboration
-- SOAR integration hooks
-- Executive dashboard
-- Custom detection rules engine
+---
+
+## 🔗 Blue Team Suite
+
+THA is part of a larger portfolio of blue team tools:
+
+| Tool | Cert Alignment | Purpose |
+|------|---------------|---------|
+| **THA** — Threat Hunting Assistant | eCTHP | Network & log analysis, IOC correlation, hunt reports |
+| **MTA** — Malware Triage Assistant | ECIH | Static malware analysis, PE inspection, triage reports |
+| **RCA** — RMF Control Assessment Assistant | CASP+ / Security+ | RMF assessments, POA&M, ST&E, ACAS triage |
 
 ---
 
 ## 📜 License
 
-MIT License — free for personal, educational, and commercial use.
-
----
-
-## 🤝 Contributing
-
-Pull requests and module contributions are welcome. The modular architecture is designed to encourage community extensions — add new log parsers, detection rules, IOC feed adapters, or report templates.
+Creative Commons Attribution-NonCommercial 4.0 — free for personal and educational use. Attribution required.
 
 ---
 
