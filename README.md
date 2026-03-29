@@ -5,7 +5,7 @@
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white)](https://python.org)
 [![eCTHP Aligned](https://img.shields.io/badge/eCTHP-Aligned-38BDF8)](https://elearnsecurity.com)
 [![MITRE ATT&CK](https://img.shields.io/badge/MITRE-ATT%26CK-red)](https://attack.mitre.org)
-[![Version](https://img.shields.io/badge/Version-1.6-brightgreen)]()
+[![Version](https://img.shields.io/badge/Version-1.7-brightgreen)]()
 
 ---
 
@@ -23,16 +23,49 @@ THA executes the full eCTHP hunt cycle:
 | 2 | Evidence Collection | `tha_pcap.py` + `tha_logs.py` |
 | 3 | Network Protocol Analysis | `tha_icmp.py`, `tha_dns.py`, `tha_dhcp.py`, `tha_http.py` |
 | 4 | Listener & Process Triage | `tha_listener_hunt.py` — Live endpoint analysis |
-| 5 | IOC & Threat Intel | `tha_ioc.py` — Correlation engine |
-| 6 | Hypothesis Development | `tha_hypothesis.py` — MITRE mapping |
-| 7 | Validation | GUI analyst notes + evidence tables |
-| 8 | Documentation | `tha_report.py` — HTML/PDF output |
+| 5 | Enhanced Detection | `tha_beaconing.py`, `tha_exfil_direction.py`, `tha_suspicious_tld_dns.py` |
+| 6 | IOC & Threat Intel | `tha_ioc.py` — Correlation engine |
+| 7 | Hypothesis Development | `tha_hypothesis.py` — MITRE mapping |
+| 8 | Validation | GUI analyst notes + evidence tables |
+| 9 | Documentation | `tha_report.py` + `tha_report_pdf.py` — HTML/PDF output |
 
 ---
 
 ## 🧩 Key Capabilities
 
-### 🔍 Suspicious Listener Hunt (v1.6 — New)
+### 🎯 Enhanced Detection Engine (v1.7 — New)
+
+Four new modules form a unified detection and scoring pipeline that runs automatically on every loaded PCAP alongside the baseline analysis.
+
+**`tha_suspicious_tld_dns.py`** — TLD & DGA Analysis
+- Flags domains using high-risk TLDs (`.ru`, `.cn`, `.top`, `.xyz`, `.tk`, and more)
+- Shannon entropy analysis to identify algorithmically generated domain names
+- Resolves suspicious domains to IPs for downstream C2 correlation
+- MITRE T1071.004 — DNS C2, T1568.002 — DGA
+
+**`tha_exfil_direction.py`** — Exfiltration Direction Classification
+- Distinguishes true outbound exfiltration from inbound staging (adversary pushing tools)
+- Correctly labels large transfers as `OUTBOUND_EXFIL`, `INBOUND_STAGING`, or `BEACONING`
+- Prevents false-positive exfiltration alerts on inbound payload delivery
+- MITRE T1041 — Exfil over C2, T1105 — Ingress Tool Transfer
+
+**`tha_beaconing.py`** — Statistical Beacon Detection
+- Coefficient of variation (CV) analysis on connection timing to detect jittered C2 beacons
+- Detects both regular-interval and jitter-obfuscated beaconing patterns
+- DNS beacon detection — periodic queries to single external domain
+- Reports session count, mean interval, CV, and jitter percentage per beacon
+- MITRE T1071.001 — Web Protocols C2, T1071.004 — DNS C2
+
+**`tha_risk_scoring.py`** — Unified Risk Scoring
+- Aggregates findings from all three enhanced modules into a single 0–100 risk score
+- Convergence bonus: score increases when multiple modules independently confirm the same IOC
+- Kill chain bonus: score increases with each additional kill chain stage covered
+- Breadth bonus: accounts for total finding volume across all modules
+- Produces IOC convergence table, adversary narrative, and recommended actions
+
+---
+
+### 🔍 Suspicious Listener Hunt (v1.6)
 
 **`tha_listener_hunt.py`** automates network listener triage on live Windows endpoints — the exact workflow an analyst performs manually during incident response, fully scripted.
 
@@ -151,8 +184,9 @@ MTA returns disposition → feed IOCs back into THA hunt session
 
 ### 📄 SOC-Ready Report Builder
 - Dark-theme HTML report with full evidence tables
-- PDF export via WeasyPrint
-- Exec summary, adversary narrative, MITRE coverage map, IOC table
+- PDF export via ReportLab — fully wrapping tables, high-contrast severity badges
+- Exec summary, adversary narrative, MITRE coverage map, IOC convergence table
+- Unified risk score with score breakdown (base + convergence + kill chain + breadth bonuses)
 - Designed for client delivery, interviews, and portfolio use
 
 ---
@@ -161,27 +195,33 @@ MTA returns disposition → feed IOCs back into THA hunt session
 
 ```
 THA/
-├── tha_gui.py                # Main Tkinter GUI
-├── tha_core.py               # Session management & orchestration
+├── tha_gui.py                    # Main Tkinter GUI
+├── tha_core.py                   # Session management & orchestration
 │
-├── tha_pcap.py               # PCAP orchestration engine (v1.5)
-├── tha_netsummary.py         # Passive asset discovery — NetworkMiner style
-├── tha_icmp.py               # ICMP tunnel/flood/anomaly detection
-├── tha_dns.py                # DNS exfiltration, DGA, tunneling detection
-├── tha_dhcp.py               # Rogue DHCP server, starvation detection
-├── tha_http.py               # C2 beaconing, Cobalt Strike, UA detection
+├── tha_pcap.py                   # PCAP orchestration engine (v1.5)
+├── tha_netsummary.py             # Passive asset discovery — NetworkMiner style
+├── tha_icmp.py                   # ICMP tunnel/flood/anomaly detection
+├── tha_dns.py                    # DNS exfiltration, DGA, tunneling detection
+├── tha_dhcp.py                   # Rogue DHCP server, starvation detection
+├── tha_http.py                   # C2 beaconing, Cobalt Strike, UA detection
 │
-├── tha_listener_hunt.py      # Live listener triage — NEW v1.6
+├── tha_listener_hunt.py          # Live listener triage — v1.6
 │
-├── tha_logs.py               # Log parsing (JSON, CSV, Sysmon, Linux)
-├── tha_ioc.py                # IOC correlation engine
-├── tha_hypothesis.py         # Hypothesis generation & MITRE mapping
-├── tha_report.py             # HTML/PDF report builder
+├── tha_suspicious_tld_dns.py     # TLD & DGA domain analysis — NEW v1.7
+├── tha_exfil_direction.py        # Exfil direction classification — NEW v1.7
+├── tha_beaconing.py              # Statistical beacon detection — NEW v1.7
+├── tha_risk_scoring.py           # Unified risk scoring engine — NEW v1.7
+│
+├── tha_logs.py                   # Log parsing (JSON, CSV, Sysmon, Linux)
+├── tha_ioc.py                    # IOC correlation engine
+├── tha_hypothesis.py             # Hypothesis generation & MITRE mapping
+├── tha_report.py                 # HTML/PDF report builder
+├── tha_report_pdf.py             # ReportLab PDF engine — NEW v1.7
 │
 ├── samples/
-│   └── sample_iocs.csv       # Sample threat-intel IOC database
+│   └── sample_iocs.csv           # Sample threat-intel IOC database
 │
-└── output/                   # Generated reports and saved sessions
+└── output/                       # Generated reports and saved sessions
 ```
 
 ---
@@ -196,7 +236,7 @@ THA/
 ```bash
 pip install -r requirements.txt
 pip install scapy        # PCAP analysis
-pip install weasyprint   # PDF export (optional)
+pip install reportlab    # PDF export
 pip install requests     # Required for VirusTotal enrichment
 ```
 
@@ -209,7 +249,7 @@ python tha_gui.py
 1. Set your **Hunt Name** and **Analyst Name**
 2. Load evidence files: PCAP, logs (JSON/CSV/XML/log), IOC database
 3. Click **▶ Run Full Analysis**
-4. Review findings across the **Network**, **Logs**, and **IOCs** tabs
+4. Review findings across the **Network**, **Logs**, **IOCs**, and **Threat Intel** tabs
 5. Click **💡 Generate Hypotheses** for MITRE-mapped output
 6. Export your **HTML** or **PDF** report
 
@@ -226,12 +266,16 @@ python tha_listener_hunt.py --live --show REVIEW
 
 Each hunt produces a SOC-ready report including:
 
-- **Executive Summary** with risk severity rating
+- **Executive Summary** with unified risk score (0–100) and tier rating
+- **Score Breakdown** — base finding score + convergence, kill chain, and breadth bonuses
 - **Adversary Narrative** — plain-English kill-chain description
-- **Hunt Hypotheses** — severity-ranked, evidence-backed
+- **IOC Convergence Table** — cross-module IOC confirmation with bar indicators
+- **Enhanced Detection Findings** — TLD/DNS, exfil direction, and beaconing results
+- **Network Analysis Findings** — detailed evidence from baseline PCAP modules
+- **Hunt Hypotheses** — severity-ranked, evidence-backed, MITRE-mapped
 - **MITRE ATT&CK Coverage Map** — techniques and tactics observed
 - **IOC Match Table** — matched indicators with attribution
-- **Network & Log Findings** — detailed evidence tables
+- **Recommended Actions** — analyst next steps
 - **Analyst Notes** — your manual observations
 
 ---
@@ -242,9 +286,11 @@ THA is built around the **eCTHP (eLearnSecurity Certified Threat Hunting Profess
 
 - Structured hypothesis-driven hunting approach
 - Evidence-based MITRE ATT&CK mapping
-- Protocol-level network anomaly detection
+- Protocol-level network anomaly detection (ICMP, DNS, DHCP, HTTP)
+- Statistical beaconing detection with CV-based jitter analysis
+- Exfiltration direction classification (outbound vs inbound staging)
 - Live endpoint listener and process triage
-- Professional hunt report generation
+- Professional hunt report generation with unified risk scoring
 - Real-world PCAP, Sysmon, and Windows Event Log analysis
 - IOC threat intelligence integration
 
@@ -257,6 +303,7 @@ THA is built around the **eCTHP (eLearnSecurity Certified Threat Hunting Profess
 | **v1.0** | ✅ Shipped | Log analysis, IOC correlation, MITRE mapping, hunt reports |
 | **v1.5** | ✅ Shipped | Network hunting — ICMP, DNS, DHCP, HTTP, C2 beaconing detection |
 | **v1.6** | ✅ Shipped | Live listener hunt — netstat triage, PID resolution, VT enrichment |
+| **v1.7** | ✅ Shipped | Enhanced detection — beaconing CV scoring, exfil direction, TLD/DGA analysis, unified risk scoring, ReportLab PDF engine |
 | **v2.0** | 🔲 Planned | Cloud log ingestion, Sigma rules, behavioral scoring, timeline reconstruction, OTX enrichment |
 | **v3.0** | 🔲 Planned | Web-based SaaS interface, multi-analyst collaboration, SOAR integration, executive dashboard |
 
