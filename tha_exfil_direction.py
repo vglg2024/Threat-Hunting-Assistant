@@ -31,6 +31,8 @@ import socket
 import collections
 from dataclasses import dataclass, field
 from typing import Optional
+from atlas_tags import ATLASTagger, enrich_for_atlas
+_atlas_tagger = ATLASTagger()
 
 
 # ---------------------------------------------------------------------------
@@ -386,6 +388,19 @@ def analyze_exfiltration_direction(
 def format_alerts_for_tha(alerts: list[ExfilAlert]) -> list[dict]:
     findings = []
     for alert in alerts:
+
+        # ── ATLAS tagging ─────────────────────────────────────────────────
+        tag_text = enrich_for_atlas(
+            text      = f"{alert.alert_type} {alert.direction} {alert.detail}",
+            dest_host = alert.dst_ip,
+        )
+        atlas_hits = _atlas_tagger.tag_finding(tag_text)
+        atlas_techniques = [
+            {"id": t.id, "name": t.name, "tactic": t.tactic, "attck_analog": t.attck_analog}
+            for t in atlas_hits
+        ]
+        # ─────────────────────────────────────────────────────────────────
+
         findings.append({
             "type":        alert.alert_type,
             "severity":    alert.severity,
@@ -395,6 +410,7 @@ def format_alerts_for_tha(alerts: list[ExfilAlert]) -> list[dict]:
             "detail":      alert.detail,
             "mitre":       alert.mitre_technique,
             "risk_score":  alert.risk_score,
+            "atlas_techniques": atlas_techniques,          # ADD
             "evidence": {
                 "bytes_transferred": alert.bytes_transferred,
                 "session_count":     alert.session_count,

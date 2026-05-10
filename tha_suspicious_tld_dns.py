@@ -21,6 +21,8 @@ import socket
 import collections
 from dataclasses import dataclass, field
 from typing import Optional
+from atlas_tags import ATLASTagger, enrich_for_atlas
+_atlas_tagger = ATLASTagger()
 
 
 # ---------------------------------------------------------------------------
@@ -417,12 +419,21 @@ def analyze_suspicious_tld_dns(pcap_path: str) -> list[SuspiciousDnsAlert]:
 # ---------------------------------------------------------------------------
 
 def format_alerts_for_tha(alerts: list[SuspiciousDnsAlert]) -> list[dict]:
-    """
-    Convert alerts to THA's standard network_findings dict format
-    so they slot directly into the existing report pipeline.
-    """
     findings = []
     for alert in alerts:
+
+        # ── ATLAS tagging ─────────────────────────────────────────────────
+        tag_text = enrich_for_atlas(
+            text      = f"{alert.alert_type} {alert.detail} {alert.domain}",
+            dest_host = alert.domain,
+        )
+        atlas_hits = _atlas_tagger.tag_finding(tag_text)
+        atlas_techniques = [
+            {"id": t.id, "name": t.name, "tactic": t.tactic, "attck_analog": t.attck_analog}
+            for t in atlas_hits
+        ]
+        # ─────────────────────────────────────────────────────────────────
+
         findings.append({
             "type":        alert.alert_type,
             "severity":    alert.severity,
@@ -431,6 +442,7 @@ def format_alerts_for_tha(alerts: list[SuspiciousDnsAlert]) -> list[dict]:
             "detail":      alert.detail,
             "mitre":       alert.mitre_technique,
             "risk_score":  alert.risk_score,
+            "atlas_techniques": atlas_techniques,          # ADD
             "evidence": {
                 "resolved_ips":           alert.resolved_ips,
                 "query_count":            alert.query_count,

@@ -59,7 +59,9 @@ import datetime
 import collections
 from dataclasses import dataclass, field
 from typing import Optional
+from atlas_tags import ATLASTagger
 
+_atlas_tagger = ATLASTagger()
 # ---------------------------------------------------------------------------
 # Scoring constants
 # ---------------------------------------------------------------------------
@@ -184,6 +186,7 @@ class UnifiedHuntReport:
     # ATT&CK
     mitre_techniques:   list
     kill_chain_stages:  list
+    atlas_techniques:   list
 
     # Findings breakdown
     dns_findings:       list
@@ -224,6 +227,23 @@ def extract_iocs_from_findings(findings: list[dict]) -> dict[str, list]:
     ioc_map = collections.defaultdict(list)
 
     for finding in findings:
+
+        # ── ADD THIS BLOCK ────────────────────────────────────────────────
+        if "atlas_techniques" not in finding:
+            tag_text = " ".join([
+                finding.get("type", ""),
+                finding.get("detail", ""),
+                finding.get("destination", ""),
+                str(finding.get("evidence", {})),
+            ])
+            hits = _atlas_tagger.tag_finding(tag_text)
+            finding["atlas_techniques"] = [
+                {"id": t.id, "name": t.name, "tactic": t.tactic}
+                for t in hits
+            ]
+        # ─────────────────────────────────────────────────────────────────
+
+        # Everything below is your existing code, unchanged
         # Source IP
         src = finding.get("source", "")
         if src and src != "internal_host" and "." in src:
@@ -631,6 +651,15 @@ def compute_unified_risk(
     mitre_techniques  = extract_mitre_techniques(all_findings)
     kill_chain_stages = extract_kill_chain_stages(mitre_techniques)
 
+    # --- ATLAS mapping (ADD THIS) ---
+    atlas_techniques = []
+    seen_atlas_ids = set()
+    for f in all_findings:
+        for t in f.get("atlas_techniques", []):
+            if t["id"] not in seen_atlas_ids:
+                atlas_techniques.append(t)
+                seen_atlas_ids.add(t["id"])
+
     # --- Unified score ---
     raw_score, normalized_score, risk_tier, score_breakdown = compute_unified_score(
         dns_findings, exfil_findings, beacon_findings,
@@ -681,6 +710,7 @@ def compute_unified_risk(
         adversary_narrative  = adversary_narrative,
         recommended_actions  = recommended_actions,
         score_breakdown      = score_breakdown,
+        atlas_techniques     = atlas_techniques,
     )
 
 

@@ -48,6 +48,8 @@ import collections
 import statistics
 from dataclasses import dataclass, field
 from typing import Optional
+from atlas_tags import ATLASTagger, enrich_for_atlas
+_atlas_tagger = ATLASTagger()
 
 
 # ---------------------------------------------------------------------------
@@ -692,6 +694,19 @@ def analyze_beaconing(
 def format_alerts_for_tha(alerts: list[BeaconAlert]) -> list[dict]:
     findings = []
     for alert in alerts:
+
+        # ── ATLAS tagging ─────────────────────────────────────────────────
+        tag_text = enrich_for_atlas(
+            text      = f"{alert.alert_type} {alert.detail} {alert.pattern}",
+            dest_host = alert.dst_ip,
+        )
+        atlas_hits = _atlas_tagger.tag_finding(tag_text)
+        atlas_techniques = [
+            {"id": t.id, "name": t.name, "tactic": t.tactic, "attck_analog": t.attck_analog}
+            for t in atlas_hits
+        ]
+        # ─────────────────────────────────────────────────────────────────
+
         findings.append({
             "type":        f"beacon_{alert.alert_type}",
             "severity":    alert.severity,
@@ -701,6 +716,7 @@ def format_alerts_for_tha(alerts: list[BeaconAlert]) -> list[dict]:
             "detail":      alert.detail,
             "mitre":       alert.mitre_technique,
             "risk_score":  alert.risk_score,
+            "atlas_techniques": atlas_techniques,          # ADD
             "evidence": {
                 "session_count":     alert.session_count,
                 "mean_interval_s":   alert.mean_interval_s,
