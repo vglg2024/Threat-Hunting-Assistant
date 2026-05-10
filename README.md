@@ -63,7 +63,7 @@ Four new modules form a unified detection and scoring pipeline that runs automat
 - Breadth bonus: accounts for total finding volume across all modules
 - Produces IOC convergence table, adversary narrative, and recommended actions
 
-- ### 🤖 MITRE ATLAS Integration (v1.8 — New)
+### 🤖 MITRE ATLAS Integration (v1.8 — New)
 
 **`atlas_tags.py`** — AI Threat Technique Tagging Engine
 - Tags all THA findings with MITRE ATLAS technique IDs alongside ATT&CK
