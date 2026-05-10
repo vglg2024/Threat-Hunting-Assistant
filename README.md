@@ -1,11 +1,11 @@
 # 🛡 Threat Hunting Assistant (THA)
 
 > **AI-augmented threat hunting. eCTHP-aligned. SOC-ready.**
-
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white)](https://python.org)
 [![eCTHP Aligned](https://img.shields.io/badge/eCTHP-Aligned-38BDF8)](https://elearnsecurity.com)
 [![MITRE ATT&CK](https://img.shields.io/badge/MITRE-ATT%26CK-red)](https://attack.mitre.org)
-[![Version](https://img.shields.io/badge/Version-1.7-brightgreen)]()
+[![MITRE ATLAS](https://img.shields.io/badge/MITRE-ATLAS-orange)](https://atlas.mitre.org)
+[![Version](https://img.shields.io/badge/Version-1.8-brightgreen)]()
 
 ---
 
@@ -62,6 +62,29 @@ Four new modules form a unified detection and scoring pipeline that runs automat
 - Kill chain bonus: score increases with each additional kill chain stage covered
 - Breadth bonus: accounts for total finding volume across all modules
 - Produces IOC convergence table, adversary narrative, and recommended actions
+
+- ### 🤖 MITRE ATLAS Integration (v1.8 — New)
+
+**`atlas_tags.py`** — AI Threat Technique Tagging Engine
+- Tags all THA findings with MITRE ATLAS technique IDs alongside ATT&CK
+- 14 techniques covering the full AI attack lifecycle — reconnaissance
+  through exfiltration and impact
+- `enrich_for_atlas()` automatically flags traffic to known AI inference
+  endpoints (OpenAI, Anthropic, HuggingFace, Mistral, Cohere, and more)
+- Every finding dict now carries `atlas_techniques` as a standard field
+
+**Coverage across all modules:**
+
+| Module | Integration point |
+|--------|-------------------|
+| `tha_risk_scoring.py` | `extract_iocs_from_findings()` |
+| `tha_beaconing.py` | `format_alerts_for_tha()` |
+| `tha_suspicious_tld_dns.py` | `format_alerts_for_tha()` |
+| `tha_exfil_direction.py` | `format_alerts_for_tha()` |
+
+ATLAS techniques covered: AML.T0000 · AML.T0002 · AML.T0004 · AML.T0010
+· AML.T0016 · AML.T0019 · AML.T0020 · AML.T0031 · AML.T0040 · AML.T0043
+· AML.T0047 · AML.T0048 · AML.T0054
 
 ---
 
@@ -211,6 +234,7 @@ THA/
 ├── tha_exfil_direction.py        # Exfil direction classification — NEW v1.7
 ├── tha_beaconing.py              # Statistical beacon detection — NEW v1.7
 ├── tha_risk_scoring.py           # Unified risk scoring engine — NEW v1.7
+├── atlas_tags.py                 # MITRE ATLAS technique tagging — NEW v1.8
 │
 ├── tha_logs.py                   # Log parsing (JSON, CSV, Sysmon, Linux)
 ├── tha_ioc.py                    # IOC correlation engine
@@ -304,6 +328,7 @@ THA is built around the **eCTHP (eLearnSecurity Certified Threat Hunting Profess
 | **v1.5** | ✅ Shipped | Network hunting — ICMP, DNS, DHCP, HTTP, C2 beaconing detection |
 | **v1.6** | ✅ Shipped | Live listener hunt — netstat triage, PID resolution, VT enrichment |
 | **v1.7** | ✅ Shipped | Enhanced detection — beaconing CV scoring, exfil direction, TLD/DGA analysis, unified risk scoring, ReportLab PDF engine |
+| **v1.8** | ✅ Shipped | MITRE ATLAS integration — AI threat technique tagging across all detection modules |
 | **v2.0** | 🔲 Planned | Cloud log ingestion, Sigma rules, behavioral scoring, timeline reconstruction, OTX enrichment |
 | **v3.0** | 🔲 Planned | Web-based SaaS interface, multi-analyst collaboration, SOAR integration, executive dashboard |
 
